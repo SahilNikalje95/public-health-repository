@@ -1,0 +1,118 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import statsmodels.api as sm
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import r2_score
+
+df = pd.read_csv('hospital data analysis.csv')
+
+print(df.head())
+
+print(df.shape)
+
+df.info()
+
+num_cols = df.select_dtypes(include='number').columns
+print(df[num_cols].describe())
+
+numdf = df.select_dtypes(include='number').drop(columns=['Patient_ID'])
+idx = 1
+for col in numdf.columns:
+    plt.subplot(2, 2, idx)
+    plt.subplots_adjust(hspace=0.5, wspace=0.6)
+    plt.title('Histplot of ' + col)
+    sns.histplot(x=numdf[col], data=numdf, kde=True)
+    idx += 1
+plt.show()
+
+cat_cols = df.select_dtypes(include='object').columns
+for col in cat_cols:
+    plt.figure(figsize=(10, 5))
+    sns.countplot(data=df, x=col, order=df[col].value_counts().index)
+    plt.title('Count Plot of ' + col)
+    plt.xticks(rotation=50)
+    plt.tight_layout()
+    plt.show()
+
+df_encoded = pd.get_dummies(df, drop_first=True)
+
+bool_cols = df_encoded.select_dtypes(include='bool').columns
+df_encoded[bool_cols] = df_encoded[bool_cols].astype(int)
+
+print(df_encoded.head())
+
+plt.figure(figsize=(16, 12))
+sns.heatmap(df.corr(numeric_only=True), cmap='coolwarm', annot=True)
+plt.title('Correlation Heatmap')
+plt.tight_layout()
+plt.show()
+
+corr = df.corr(numeric_only=True)
+print(corr['Cost'].drop('Cost').sort_values(key=abs, ascending=False))
+
+categorical_cols = df.select_dtypes(include='object').columns
+df_encoded = pd.get_dummies(df, columns=categorical_cols, drop_first=True)
+bool_cols = df_encoded.select_dtypes(include='bool').columns
+df_encoded[bool_cols] = df_encoded[bool_cols].astype(int)
+
+X = df_encoded.drop(columns=['Cost', 'Patient_ID'])
+Y = df_encoded['Cost']
+
+print('X shape:', X.shape)
+print('Y shape:', Y.shape)
+
+x_simple = df[['Satisfaction']]
+y_simple = df[['Cost']]
+
+X_train_s, X_test_s, y_train_s, y_test_s = train_test_split(x_simple, y_simple, test_size=0.2, random_state=42)
+
+simple_model = LinearRegression()
+simple_model.fit(X_train_s, y_train_s)
+y_pred_s = simple_model.predict(X_test_s)
+
+print('Simple Linear Regression R-squared:', r2_score(y_test_s, y_pred_s))
+
+sns.regplot(x='Satisfaction', y='Cost', data=df)
+plt.title('Simple Linear Regression: Satisfaction vs Cost')
+plt.show()
+
+X_train_m, X_test_m, y_train_m, y_test_m = train_test_split(X, Y, test_size=0.2, random_state=42)
+
+multiple_model = LinearRegression()
+multiple_model.fit(X_train_m, y_train_m)
+y_pred_m = multiple_model.predict(X_test_m)
+
+print('Multiple Linear Regression R-squared:', r2_score(y_test_m, y_pred_m))
+
+x_sm = sm.add_constant(X, has_constant='add')
+x_sm = x_sm.astype(float)
+sm_model = sm.OLS(Y, x_sm).fit()
+print(sm_model.summary())
+
+def backward_elimination(X, y, sl=0.05):
+    selected_features = list(X.columns)
+    while True:
+        X_subset = X[selected_features].copy()
+        X_const = sm.add_constant(X_subset, has_constant='add')
+        X_const = X_const.astype(float)
+        model = sm.OLS(y, X_const).fit()
+        pvals = model.pvalues.drop('const')
+        if pvals.max() > sl:
+            worst_feature = pvals.idxmax()
+            selected_features.remove(worst_feature)
+        else:
+            break
+    final_X_subset = X[selected_features].copy()
+    final_X = sm.add_constant(final_X_subset, has_constant='add')
+    final_X = final_X.astype(float)
+    final_model = sm.OLS(y, final_X).fit()
+    return final_model, selected_features
+
+final_model, selected_features = backward_elimination(X, Y, sl=0.05)
+print(final_model.summary())
+print('Selected features used in final model:')
+print(selected_features)
+print('Final R-squared:', final_model.rsquared)
