@@ -1,0 +1,92 @@
+axial-brain-tumor-detection-mwjrs/1
+GubfOh5kfZGxmCuvxgKa
+
+
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, classification_report
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+import matplotlib.pyplot as plt
+import numpy as np
+
+df = pd.read_csv("METABRIC_RNA_Mutation.csv")
+df.head()
+df.columns
+
+df["cancer_type"].value_counts()
+
+df["death_from_cancer"].value_counts()
+
+df["smarcb1_mut"].value_counts()
+
+col_index = df.columns.get_loc("brca1")
+col_index
+
+
+x = df.iloc[:, 31:]
+x.dtypes
+
+x = x.drop_duplicates()
+
+for i in x.columns:
+    x[i] = x[i].apply(lambda x: x.strip() if type(x) == "str" else x)
+
+x_ob = x.select_dtypes(include="object")
+x = pd.get_dummies(columns=x_ob.columns, data=x)
+x.dtypes
+
+y = df["death_from_cancer"]
+
+from sklearn.feature_selection import SelectKBest, f_classif
+x_tr, x_test, y_tr, y_test = train_test_split(
+    x, y, test_size=0.2, random_state=100)
+
+
+best_model = SelectKBest(f_classif, k=10).fit(x_tr, y_tr)
+
+best_model.get_support(indices=True)
+
+x.iloc[:, [47, 120, 169, 244, 271, 281, 302, 405, 437, 451]]
+
+x_new = SelectKBest(f_classif, k=100).fit_transform(x_tr, y_tr)
+x_new.shape
+
+logit_model1 = LogisticRegression().fit(x_tr, y_tr)
+p_tr = logit_model1.predict(x_tr)
+p_tr
+
+
+print(classification_report(y_tr, p_tr))
+len(x_tr.columns)
+
+
+logit_model2 = LogisticRegression().fit(x_new, y_tr)
+p_tr2 = logit_model2.predict(x_new)
+print(classification_report(y_tr, p_tr2))
+
+
+x.shape
+x_scaled = StandardScaler().fit_transform(x)
+
+
+
+wcsd = []
+for i in range(2, 21):
+    model = KMeans(n_clusters=i, init="random", random_state=100).fit(x_scaled)
+    wcsd.append(model.inertia_)
+
+plt.plot(range(2, 21), wcsd, marker="o", markerfacecolor="red", color="green")
+
+
+
+final_model = KMeans(n_clusters=3).fit(x_scaled)
+p = final_model.predict(x_scaled)
+x["clusters"] = p
+x["clusters"].value_counts()
+
+
+from sklearn.metrics import silhouette_score
+silhouette_score(x_scaled, p)
