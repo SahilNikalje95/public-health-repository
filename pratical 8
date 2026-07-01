@@ -1,0 +1,183 @@
+1. Import dataset.
+2. Tokenize the statement column and add the tokenized text in "token_stmt" column
+3. Conver the tokenized text to lower case and add to "token_lower" column
+4. Remove the English stopwords from the token_lower column and add to "token_stop" column.
+5. Perform lemmatization and add to "token_lemma" column.
+6. Perform pos tagging and add to "pos_tag" column
+7. Create a word cloud with only the adjectives and display
+8. Convert into numbers using CuntVectorizer and perform text classification
+9. Print the classification report
+
+
+import nltk
+import pandas as pd
+from nltk.tokenize import word_tokenize, RegexpTokenizer
+from nltk.corpus import stopwords
+from nltk.stem.wordnet import WordNetLemmatizer
+from wordcloud import WordCloud
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import roc_curve, auc, classification_report
+import matplotlib.pyplot as plt
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+
+
+df = pd.read_csv("Combined Data.csv")
+
+df.head()
+
+df.drop("Unnamed: 0", axis=1, inplace=True)
+
+df["status"].value_counts()
+
+df.isna().sum()
+
+df = df.dropna()
+
+df.shape
+
+nltk.download('punkt_tab')
+tokens = []
+for i in df["statement"]:
+    x = word_tokenize(i)
+    tokens.append(x)
+df["token_word"] = tokens
+
+
+df["token_word"].head()
+
+
+tokens = []
+for i in df["statement"]:
+    x = RegexpTokenizer("[A-Z]|[a-z]+").tokenize(i)
+    tokens.append(x)
+df["token"] = tokens
+
+
+df["token"].head()
+
+tokens[0:2]
+
+
+lower_tokens = []
+for i in df["token"]:
+    row = []
+    for j in i:
+        x = j.lower()
+        row.append(x)
+    lower_tokens.append(row)
+
+
+lower_tokens[0:2]
+
+
+df["lower_token"] = lower_tokens
+
+df.head(2)
+
+
+nltk.download('stopwords')
+stop_words = set(stopwords.words("english"))
+no_stopw = []
+for i in df["lower_token"]:
+    row = []
+    for j in i:
+        if j not in stop_words:
+            row.append(j)
+    no_stopw.append(row)
+
+
+no_stopw[0:2]
+
+
+df["no_stop_words"] = no_stopw
+df["no_stop_words"].head()
+
+
+df.columns
+
+nltk.download('wordnet')
+lemma = []
+for i in df["no_stop_words"]:
+    row = []
+    for j in i:
+        x = WordNetLemmatizer().lemmatize(j)
+        row.append(j)
+    lemma.append(row)
+df["lemma_text"] = lemma
+
+df.head()
+
+
+nltk.download('averaged_perceptron_tagger_eng')
+pos_tag = []
+for i in df["lemma_text"]:
+    x = nltk.pos_tag(i)
+    pos_tag.append(x)
+
+df["pos_tag"] = pos_tag
+
+
+adj_tag = []
+for i in df["pos_tag"]:
+    row = []
+    for j in i:
+        if j[1] == "JJ":
+            row.append(j[0])
+    adj_tag.append(row)
+
+df["adj_words"] = adj_tag
+
+
+adj_tag[0:5]
+
+ll_words = []
+for i in df["adj_words"]:
+    for j in i:
+        ll_words.append(j)
+
+np.array(ll_words).shape
+
+word_text = ",".join(ll_words)
+
+wc = WordCloud(background_color="black", max_words=10000)
+wc.generate(word_text)
+
+plt.figure(figsize=(20, 20))
+wc.to_image()
+
+
+df.shape
+
+
+str_lemma = []
+for i in df["lemma_text"]:
+    x = ",".join(i)
+    str_lemma.append(x)
+
+
+str_lemma[0:5]
+
+df["status"].value_counts()
+
+v1 = CountVectorizer().fit_transform(str_lemma)
+
+v1
+
+x_tr, x_test, y_tr, y_test = train_test_split(
+    v1, df["status"], test_size=0.2, random_state=42
+)
+
+logit_model = LogisticRegression(max_iter=1000).fit(x_tr, y_tr)
+
+p = logit_model.predict(x_test)
+print(classification_report(y_test, p))
+
+rf = RandomForestClassifier().fit(x_tr, y_tr)
+p_test_rf = rf.predict(x_test)
+print(classification_report(y_test, p_test_rf))
+
+
+
