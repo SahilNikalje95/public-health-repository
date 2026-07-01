@@ -1,0 +1,99 @@
+Import the dataset
+Plot a signal row using a line plot
+Print the frequency table for the class of signals
+Print the grid plots showing at least 16 images
+Create new attributes,  
+
+mean_max_amplitude,
+
+waveform spread,Average_skew,Average_kurtosis
+Perform train test split
+Perform classification using Decisontreeclassifier and logistic regression
+Print classification report and write compason
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from scipy.stats import skew, kurtosis
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import classification_report, accuracy_score
+
+
+train_df = pd.read_csv('mitbih_train.csv', header=None)
+test_df = pd.read_csv('mitbih_test.csv', header=None)
+
+df = pd.concat([train_df, test_df], axis=0)
+print(df.head())
+
+print("Dataset Shape:", df.shape)
+
+signal = df.iloc[0, :-1]
+
+plt.figure(figsize=(12,5))
+plt.plot(signal)
+plt.title('ECG Signal Plot')
+plt.xlabel('Time Step')
+plt.ylabel('Amplitude')
+plt.grid(True)
+plt.show()
+
+
+freq_table = df.iloc[:, -1].value_counts()
+
+print("Frequency Table:\n")
+print(freq_table)
+
+plt.figure(figsize=(14,14))
+for i in range(16):
+    plt.subplot(4,4,i+1)
+    plt.plot(df.iloc[i, :-1])
+    plt.title(f'Class: {df.iloc[i,-1]}')
+    plt.xticks([])
+    plt.yticks([])
+plt.tight_layout()
+plt.show()
+
+
+X = df.iloc[:, :-1]
+df['mean_max_amplitude'] = (X.mean(axis=1) + X.max(axis=1)) / 2
+df['waveform_spread'] = X.max(axis=1) - X.min(axis=1)
+df['Average_skew'] = skew(X.to_numpy(), axis=1)
+df['Average_kurtosis'] = kurtosis(X.to_numpy(), axis=1)
+print(df.head())
+
+
+df.columns = df.columns.astype(str)
+
+X = df.drop(columns=[df.columns[-5]])
+y = df.iloc[:, -5]
+
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X, y,
+    test_size=0.2,
+    random_state=42,
+    stratify=y
+)
+
+print("Training Shape:", X_train.shape)
+print("Testing Shape:", X_test.shape)
+
+DT_model = DecisionTreeClassifier(random_state=42)
+
+DT_model.fit(X_train, y_train)
+
+DT_pred = DT_model.predict(X_test)
+
+print("Decision Tree Accuracy:", accuracy_score(y_test, DT_pred))
+
+print("\nLogistic Regression Classification Report\n")
+print(classification_report(y_test, DT_pred))
+
+
+
+
+
