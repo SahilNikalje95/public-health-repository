@@ -1,0 +1,95 @@
+1. Import the xray imge train ,validation and test dataset
+2.View the list of 4 images from train folder
+3.Print the number of images in train,test and valid folder
+4.Print a single random image in grayscale from test folder
+5.Print 16 images in a grid with their class names from train folder
+6.Create a keras batch for training, test and vali images with size of the image 64x64 and batch size=16
+7.Create 1 inpul layer ,2 hidden layers and 2 output layer
+8.compile and fit the model with 100 epochs and validation dataset.
+9.Predict the classes with test batch
+10.Print a classification report
+
+
+
+import os
+import pandas as pd
+from tensorflow import keras
+from keras.layers import Input, Dense, Flatten
+import numpy as np
+from sklearn.metrics import classification_report
+import matplotlib.pyplot as plt
+import cv2
+
+
+train_path  = "/kaggle/input/datasets/dmtrrmnv/clean-bone-fracture/data/train/images"
+test_path   = "/kaggle/input/datasets/dmtrrmnv/clean-bone-fracture/data/test/images"
+val_path    = "/kaggle/input/datasets/dmtrrmnv/clean-bone-fracture/data/valid/images"
+train_labels= "/kaggle/input/datasets/dmtrrmnv/clean-bone-fracture/data/train/labels"
+
+
+image_list   = os.listdir(train_path)
+image_labels = os.listdir(train_labels)
+image_labels[0:5]
+
+
+labels = []
+for i in image_labels:
+    x = pd.read_csv(train_labels+"/"+i, sep=" ", header=None)
+    labels.append(x.iloc[0:1, 0:1].values.item())
+
+
+x_train = image_list
+y_train = labels
+
+img = cv2.imread(train_path+"/"+image_list[0])
+plt.imshow(img)
+
+
+plt.figure(figsize=(10,10))
+for i in range(0,32):
+    plt.subplot(8,4,i+1)
+    plt.subplots_adjust(wspace=0.7,hspace=0.9)
+    img = cv2.imread(train_path+"/"+x_train[i])
+    plt.title(y_train[i])
+    plt.imshow(img)
+
+
+img.shape
+
+train = keras.utils.image_dataset_from_directory(
+    train_path, labels=None,
+    shuffle=False, image_size=(64,64), batch_size=32)
+
+
+batch1 = train.as_numpy_iterator()
+batch1 = batch1.next()
+
+plt.imshow(batch1[0]/255)
+
+
+batch1[0].shape
+64*64*3
+2/3*8192
+
+
+x_train = np.concatenate([x for x in train], axis=0)
+x_train.shape
+x_train_new = np.reshape(x_train, [1851, 64*64*3])
+
+
+y_train = np.array(y_train, dtype="float")
+y_train[0:10]
+
+
+input_layer   = Input(shape=(64*64*3,))
+hidden_layer1 = Dense(8192, activation="relu")(input_layer)
+hidden_layer2 = Dense(5461, activation="relu")(hidden_layer1)
+output_layer  = Dense(1,    activation="sigmoid")(hidden_layer2)
+
+model = keras.Model(inputs=input_layer, outputs=output_layer)
+model.compile(optimizer="adam",
+              loss="binary_crossentropy",
+              metrics=["accuracy"])
+model.fit(x_train_new, y_train, epochs=100)
+
+
